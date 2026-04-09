@@ -7,224 +7,143 @@
  *  Skeleton file
  *)
 
-class StackCommand {
-
-   getChar(): String {
-      "Called from base class"
-   };
-
-   execute(node: StackNode): StackNode {
-      let ret: StackNode in {
-         (new IO).out_string("Undefined execution!\n");
-         ret;
-      }
-   };
-
-   getNumber(): Int {
-      0
-   };
-};
-
-class IntCommand inherits StackCommand {
-   number: Int;
-
-   init(num: Int): SELF_TYPE {
-      {
-         number <- num;
-         self;
-      }
-   };
-
-   execute(node: StackNode): StackNode {
-      node
-   };
-
-   getNumber(): Int {
-      number
-   };
-
-   getChar(): String {
-      (new A2I).i2a(number)
-   };
-};
-
-class PlusCommand inherits StackCommand {
-   init(): SELF_TYPE {
-      self
-   };
-
-   execute(node: StackNode): StackNode {
-      let n1: StackNode <- node.getNext(),
-         n2: StackNode <- n1.getNext(),
-         sum: Int,
-         ret: StackNode in {
-            if (not (isvoid n1)) then
-               if (not (isvoid n2)) then {
-                  sum <- n1.getCommand().getNumber() + n2.getCommand().getNumber();
-                  ret <- (new StackNode).init((new IntCommand).init(sum), n2.getNext());
-               } 
-               else 
-                  0
-               fi
-            else
-               0
-            fi;
-            ret;
-         }
-   };
-
-   getChar(): String {
-      "+"
-   };
-};
-
-class SwapCommand inherits StackCommand {
-   init(): SELF_TYPE {
-      self
-   };
-
-   execute(node: StackNode): StackNode {
-      let next: StackNode <- node.getNext().getNext() in {
-         node <- node.getNext();
-         node.setNext(next.getNext());
-         next.setNext(node);
-         next;
-      }
-   };
-
-   getChar(): String {
-      "s"
-   };
-};
 
 class StackNode {
-   command : StackCommand;
-   next : StackNode;
+    value : String;           
+    next  : StackNode;        
 
-   init(co: StackCommand, ne: StackNode): StackNode {
-      {
-         command <- co;
-         next <- ne;
-         self;
-      }
-   };
+    init(v : String, n : StackNode) : StackNode {
+        {
+            value <- v;
+            next  <- n;
+            self;
+        }
+    };
 
-   putOnTop(co: StackCommand): StackNode {
-      let newNode: StackNode in {
-         newNode <- (new StackNode).init(co, self);
-         newNode;
-      }
-   };
-
-   getCommand(): StackCommand {
-      {
-         command;
-      }
-   };
-
-   getNext(): StackNode {
-      {
-         next;
-      }
-   };
-
-   setNext(node: StackNode): StackNode {
-      next <- node
-   };
+    getValue() : String{ value };
+    getNext()  : StackNode { next };
+    setNext(n : StackNode) : Object { { next <- n; self; } };
 };
 
-class Main inherits A2I {
+class Stack inherits IO {
+    -- Attributes
+    top : StackNode;
 
-   -- testStackCommand() : Object {
-   --    let intCommand: IntCommand <- (new IntCommand).init(2),
-   --       nil: StackNode
-   --    in {
-   --       intCommand.execute(nil);
-   --    }
-   -- };
+    -- Methods
+    pop() : String {
+        let top_value : String <- if is_empty() then "" else top.getValue() fi in {
+            if not is_empty() then 
+                top <- top.getNext()
+            else self fi;
+            top_value;
+        }
+    };
+    push(item : String) : Object { 
+        {
+            top <- (new StackNode).init(item, top);
+            self;
+        }
+    };
+    is_empty() : Bool { 
+        isvoid top
+    };
+    print() : Object { 
+        let cur : StackNode <- top in 
+            while not isvoid cur loop {
+                out_string(cur.getValue());
+                out_string("\n");
+                cur <- cur.getNext();
+            } pool
+        
+    };
 
-   stackTop: StackNode;
+};
 
-   printStack(): Object {
-      let node: StackNode <- stackTop in {
-         while (not (isvoid node)) loop
-         {
-            (new IO).out_string(node.getCommand().getChar());
-            (new IO).out_string("\n");
-            node <- node.getNext();
-         }
-         pool;
-      }
-   };
+class Command {
+    execute(stack : Stack) : Object { abort() };
+    should_quit() : Bool { false };
+};
 
-   pushCommand(command: StackCommand): StackCommand {
-      {
-         if (isvoid stackTop) then {
-            let nil: StackNode in {
-               stackTop <- (new StackNode).init(command, nil);
+class PushCommand inherits Command {
+    value : String;
+
+    init(val : String) : SELF_TYPE {
+        {
+            value <- val;
+            self;
+        }
+    };
+
+    execute(stack : Stack) : Object {
+        stack.push(value)
+    };
+};
+
+class DCommand inherits Command {
+    execute(stack : Stack) : Object {
+        {
+            stack.print();
+        }
+    };
+};
+
+class XCommand inherits Command {
+    execute(stack : Stack) : Object { self };
+    should_quit() : Bool { true };
+};
+
+class ECommand inherits Command {
+    a2i : A2I <- new A2I;
+    execute(stack : Stack) : Object {
+        if stack.is_empty() then self else
+            let top_val : String <- stack.pop() in
+                if top_val = "s" then
+                    let val1 : String <- stack.pop(),
+                        val2 : String <- stack.pop()
+                    in {
+                        stack.push(val1);
+                        stack.push(val2);
+                    }
+                else if top_val = "+" then
+                    let val1 : Int <- a2i.a2i(stack.pop()),
+                        val2 : Int <- a2i.a2i(stack.pop())
+                    in
+                        stack.push(a2i.i2a(val1 + val2))
+                else
+                    stack.push(top_val)
+                fi fi
+        fi
+    };
+};
+
+class Main inherits IO {
+    stack : Stack <- new Stack;
+
+    prompt() : String {
+        {
+            out_string("> ");
+            in_string();
+        }
+    };
+
+    parse_command(ch : String) : Command {
+        if ch = "d" then new DCommand
+        else if ch = "x" then new XCommand
+        else if ch = "e" then new ECommand
+        else (new PushCommand).init(ch) 
+        fi fi fi
+    };
+
+    main() : Object {
+        let exit : Bool <- false in
+        while not exit loop {
+            let line : String <- prompt(),
+                cmd : Command <- parse_command(line)   
+            in {
+                cmd.execute(stack);
+                exit <- cmd.should_quit();
             };
-         } else {
-            stackTop <- stackTop.putOnTop(command);
-         } fi;
-         command;
-      }
-   };
-
-   popCommand(): StackCommand {
-      let ret: StackCommand <- stackTop.getCommand() in {
-         stackTop <- stackTop.getNext();
-         ret;
-      }
-   };
-
-   executeStackMachine(inString: String): Object {
-      {
-         if (inString = "+") then
-         {
-            pushCommand((new PlusCommand).init());
-         }
-         else
-            if (inString = "s") then
-               pushCommand((new SwapCommand).init())
-            else
-               if (inString = "d") then
-                  printStack()
-               else
-                  if (inString = "x") then
-                     -- stop
-                     {
-                        (new IO).out_string("stop!\n");
-                        abort();
-                     }
-                  else
-                     if (inString = "e") then
-                        let node: StackNode <- stackTop in {
-                           if (not (isvoid node)) then
-                              stackTop <- node.getCommand().execute(node)
-                           else
-                              0
-                           fi;
-                        }
-                     else
-                        pushCommand((new IntCommand).init((new A2I).a2i(inString)))
-                     fi
-                  fi
-               fi
-            fi
-         fi;
-      }
-   };
-
-   main() : Object {
-      let inString: String in {
-         while (true) loop
-         {
-            (new IO).out_string(">");
-            inString <- (new IO).in_string();
-            executeStackMachine(inString);
-         }
-         pool;
-      }
-   };
+        } pool
+    };
 
 };
